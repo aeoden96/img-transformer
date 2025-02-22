@@ -1,15 +1,16 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import path, { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-
+import sharp from 'sharp'
+import { replace } from 'lodash'
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
-    autoHideMenuBar: true,
+    // autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -72,3 +73,21 @@ app.on('window-all-closed', () => {
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
+
+ipcMain.handle('convert-image', async (_, { inputPath, format, options }) => {
+  try {
+    const oldExt = inputPath.split('.').pop()
+    const outputPath = replace(inputPath, oldExt, format)
+    await sharp(inputPath).toFormat(format, options).toFile(outputPath)
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: (error as any)?.message }
+  }
+})
+
+ipcMain.on('ondragstart', (event, filePath) => {
+  event.sender.startDrag({
+    file: path.join(__dirname, filePath),
+    icon: icon
+  })
+})
